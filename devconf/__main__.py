@@ -13,6 +13,7 @@ Options:
 """
 
 import os
+import re
 import sys
 import docopt
 import tomlkit
@@ -22,6 +23,43 @@ DEVCONF_VERSION_MINOR=0
 DEVCONF_VERSION_PATCH=1
 DEVCONF_VERSION = (DEVCONF_VERSION_MAJOR, DEVCONF_VERSION_MINOR, DEVCONF_VERSION_PATCH)
 DEVCONV_VERSION_STRING='%d.%d.%d' % DEVCONF_VERSION
+
+class DeviceConfigurationException(BaseException):
+    def __init__(self, message):
+        self.message = str(message)
+
+def range_func(match):
+    result = None
+    last = match.group('last')
+    step = match.group('step')
+    first = match.group('first')
+
+    if step:
+        result = list(range(int(first), int(last) + 1, int(step)))
+    elif not first:
+        result = list(range(int(last) + 1))
+    elif first:
+        result = list(range(int(first), int(last) + 1))
+    else:
+        message = 'Invalid parameters for range'
+        raise DeviceConfigurationException(message)
+
+    return result
+
+range_expr = re.compile(r'@range\(((?P<first>[^,]+),)?(?P<last>[^,]+)(,(?P<step>.+))?\)')
+
+MATCH_TABLE = [
+    { 'func': range_func, 'regex': range_expr },
+]
+
+def match_and_execute(expr):
+    for matcher in MATCH_TABLE:
+        match = matcher['regex'].match(expr)
+
+        if match != None:
+            return matcher['func'](match)
+
+    return None
 
 def is_container(arg):
     is_container = True;
@@ -42,10 +80,6 @@ def is_entry(arg):
             break
 
     return is_entry
-
-class DeviceConfigurationException(BaseException):
-    def __init__(self, message):
-        self.message = str(message)
 
 class ConfigurationEntry(object):
     VALUE_KEY = 'value'
@@ -105,6 +139,13 @@ class ConfigurationDefinitions(object):
         self.path = str(path)
         self.default_value = definition.get(self.DEFAULT_VALUE_KEY, None)
         self.allowed_values = definition.get(self.ALLOWED_VALUES_KEY, [[],[]])
+
+        for index in (self.SET_VALUE_INDEX, self.USE_VALUE_INDEX):
+            if isinstance(self.allowed_values[index], str):
+                expr = self.allowed_values[index]
+                result = match_and_execute(expr)
+                if isinstance(result, list):
+                    self.allowed_values[index] = result
 
     def default(self):
         return ConfigurationEntry(self.path, self, self.default_value)
