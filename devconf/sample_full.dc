@@ -1,0 +1,45 @@
+
+int c;
+c = 5;
+
+namespace foo {
+    int a;
+
+    int foo {
+        default = 1.0;
+        deny { [3.5 .. 4.1] };
+        allow { [1.5 .. 2.5], 5.1 };
+        const { abc = 5.0, def = 2.0 };
+        map { 1.5 = 1, 1.6 = 2, 1.7 = 3 };
+    };
+
+    foo = 3;
+}
+
+foo::a = 3;
+
+int d;
+d = 2;
+
+namespace bar1 {
+    int b;
+    b = 1;
+
+    struct bar2 {
+        int bar3 {
+            default = 0;
+            deny { [3 .. 4] };
+            allow { [1 .. 2], 5 };
+            const { abc = 5, def = 2 };
+            map { 1 = 1, 2 = 3, 5 = 10 };
+        };
+    };
+
+    struct bar2 bar2_instance;
+    bar2_instance.bar3 = b;
+}
+
+int e;
+e = foo::foo;
+
+bar1::bar2_instance.bar3 = bar1::bar2::bar3::abc;
