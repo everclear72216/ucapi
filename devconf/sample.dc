@@ -1,0 +1,10 @@
+
+int foo {
+    default = 1.0;
+    deny { [3.5 .. 4.1] };
+    allow { [1.5 .. 2.5], 5.1 };
+    const { foo = 5.0, bar = 2.0 };
+    map { 1.5 = 1, 1.6 = 2, 1.7 = 3 };
+};
+
+float bar;
