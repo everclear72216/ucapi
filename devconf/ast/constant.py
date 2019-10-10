@@ -12,7 +12,7 @@ class Constant(ast.mixins.expression.RValueExpression, ast.mixins.named.Named):
         super().__init__()
 
     def __str__(self):
-        return 'constant(%s = %s)' % (self.get_name(), str(self.get_value()))
+        return '%s = %s' % (self.get_name(), str(self.get_value()))
 
     def set_value(self, value: ast.value.Value):
         assert isinstance(value, ast.value.Value)
@@ -26,19 +26,20 @@ class ConstantList(ast.mixins.node.Node, ast.mixins.typed.Typed):
         super().__init__()
 
     def __str__(self):
-        return 'constant-list(%s)' % ', '.join(str(x) for x in self.get_children())
+        return 'const {%s};' % ', '.join(str(x) for x in self.get_children())
 
     def add_constant(self, constant: Constant):
-        if self.has_type():
-            if self.has_same_type(constant):
-                self.add_child(constant)
+        self.add_child(constant)
 
+    def check(self):
+        super().check()
+
+        for child in self.get_children():
+            if self.has_type():
+                if not self.has_same_type(child):
+                    raise ast.error.IncompatibleTypesError(self, child, self)
             else:
-                raise ast.error.IncompatibleTypesError(self, constant, self)
-
-        else:
-            self.set_type(constant.get_type())
-            self.add_child(constant)
+                self.set_type(child.get_type())
 
     def get_constant(self, name: str):
         return next((c for c in self.get_children() if c.get_name() == name), None)

@@ -16,13 +16,10 @@ class Typed(object):
         self.__type = None
 
     def __check_type(self, other) -> bool:
-        return self.__type == other
+        return self.__type is other
 
     def has_type(self) -> bool:
-        if self.__type is None:
-            return False
-
-        return True
+        return not (self.__type is None)
 
     def get_type(self) -> ast.types.Type:
         if self.__type is None:
@@ -36,16 +33,6 @@ class Typed(object):
 
         if isinstance(_type, ast.types.Type):
             self.__type = _type
-
-        else:
-            raise TypeError()
-
-    def inherit_type(self, other: 'Typed') -> None:
-        if isinstance(self.__type, ast.types.Type):
-            raise RedefinedTypeError()
-
-        if isinstance(other, Typed):
-            self.__type = other.get_type()
 
         else:
             raise TypeError()

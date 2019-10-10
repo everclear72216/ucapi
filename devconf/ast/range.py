@@ -7,73 +7,84 @@ import ast.mixins.typed
 import ast.types.groups
 
 
+class RangeLimit(ast.mixins.node.Node, ast.value.Value):
+    def __init__(self):
+        super().__init__()
+
+    def __contains__(self, value: ast.value.Value):
+        return False
+
+
+class RangeUpperLimit(RangeLimit):
+    def __init__(self):
+        super().__init__()
+
+    def __contains__(self, value: ast.value.Value) -> bool:
+        assert isinstance(value, ast.value.Value)
+        return self.get_value() <= value.get_value()
+
+
+class RangeLowerLimit(RangeLimit):
+    def __init__(self):
+        super().__init__()
+
+    def __contains__(self, value: ast.value.Value) -> bool:
+        assert isinstance(value, ast.value.Value)
+        return self.get_value() >= value.get_value()
+
+
 class Range(ast.mixins.node.Node, ast.mixins.typed.Typed):
     def __init__(self):
         super().__init__()
 
-        self._end = None
-        self._start = None
-
     def __str__(self) -> str:
-        if self._end is not None:
-            end = 'end=%s' % str(self._end)
+        (start, end) = ('', '')
 
-        else:
-            end = ''
+        for child in self.get_children():
+            if isinstance(child, RangeUpperLimit):
+                end = str(child)
+            elif isinstance(child, RangeLowerLimit):
+                start = str(child)
 
-        if self._start is not None:
-            start = 'start=%s' % str(self._start)
+        return '[%s .. %s]' % (start, end)
 
-        else:
-            start = ''
-
-        dt_name = self.get_type().get_name()
-
-        return 'range<%s>(%s, %s)' % (dt_name, start, end)
-
-    def __contains__(self, value) -> bool:
-        if self._end is not None:
-            if self._end.get_value() < value.get_value():
-                return False
-
-        if self._start is not None:
-            if self._start.get_value() > value.get_value():
+    def __contains__(self, value: ast.value.Value) -> bool:
+        for child in self.get_children():
+            if value not in child:
                 return False
 
         return True
 
-    def set_end(self, value: ast.value.Value):
-        assert isinstance(value, ast.value.Value)
+    def set_end(self, value: RangeUpperLimit) -> None:
+        assert None is next([x for x in self.get_children() if isinstance(x, RangeUpperLimit)], None)
+        assert isinstance(value, RangeUpperLimit)
 
-        if value.get_type() not in ast.types.groups.numeric:
-            raise ast.error.NonNumericRangeMember(value)
+        self.add_child(value)
 
-        if self._start is None:
-            self.set_type(value.get_type())
-            self._end = value
+    def get_end(self) -> RangeUpperLimit:
+        end = next([x for x in self.get_children() if isinstance(x, RangeUpperLimit)], None)
+        assert end is not None
 
-        elif self.has_same_type(value):
-            self._end = value
+        return end
 
-        else:
-            raise ast.error.IncompatibleTypesError(self, value.get_type(), self.get_type())
+    def set_start(self, value: RangeLowerLimit) -> None:
+        assert None is next([x for x in self.get_children() if isinstance(x, RangeLowerLimit)], None)
+        assert isinstance(value, RangeLowerLimit)
 
-    def get_end(self):
-        return self._end
+        self.add_child(value)
 
-    def set_start(self, value):
-        if value.get_type() not in ast.types.groups.numeric:
-            raise ast.error.NonNumericRangeMember(value)
+    def get_start(self) -> RangeLowerLimit:
+        end = next([x for x in self.get_children() if isinstance(x, RangeLowerLimit)], None)
+        assert end is not None
 
-        if self._end is None:
-            self.set_type(value.get_type())
-            self._start = value
+        return end
 
-        elif self.has_same_type(value):
-            self._start = value
+    def check(self):
+        super().check()
 
-        else:
-            raise ast.error.IncompatibleTypesError(self, value.get_type(), self.get_type())
-
-    def get_start(self):
-        return self._start
+        for child in self.get_children():
+            if self.has_type():
+                if not self.has_same_type(child):
+                    raise ast.error.IncompatibleTypesError(self, child, self)
+            else:
+                self.set_type(child.get_type())

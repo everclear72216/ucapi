@@ -12,7 +12,7 @@ class MapEntry(ast.mixins.node.Node, ast.mixins.typed.Typed):
         self._value = None
 
     def __str__(self):
-        return 'map-entry(%s = %s)' % (str(self._key), str(self._value))
+        return '%s = %s' % (str(self._key), str(self._value))
 
     def get_key(self):
         return self._key
@@ -38,10 +38,10 @@ class MapHelper(ast.mixins.node.Node, ast.mixins.typed.Typed):
 class Map(ast.mixins.node.Node, ast.mixins.typed.Typed):
     def __init__(self):
         super().__init__()
-        self._helper = None
+        self._helper: None or MapHelper = None
 
     def __str__(self):
-        return 'map(%s)' % ', '.join((str(x) for x in self.get_children()))
+        return 'map {%s};' % ', '.join((str(x) for x in self.get_children()))
 
     def _add_entry(self, entry):
         x = next((x for x in self.get_children() if x.get_key() == entry.get_key()), None)
@@ -50,33 +50,19 @@ class Map(ast.mixins.node.Node, ast.mixins.typed.Typed):
         else:
             self.add_child(entry)
 
-    def add_entry(self, entry):
-        if self.has_type():
-            if self.has_same_type(entry):
-                if self._helper.has_same_type(entry.get_value()):
-                    self._add_entry(entry)
-
-                else:
-                    raise ast.error.IncompatibleTypesError(self, entry.get_value().get_type(), self._helper.get_type())
-
-            else:
-                raise ast.error.IncompatibleTypesError(self, entry.get_key().get_type(), self.get_type())
-
-        else:
-            self._helper = MapHelper()
-            self._helper.set_file_name(self.get_file_name())
-            self._helper.set_line_number(self.get_line_number())
-
-            self.set_type(entry.get_key().get_type())
-            self._helper.set_type(entry.get_value().get_type())
-
-            self._add_entry(entry)
-
     def _get_entry(self, key, default):
         def compare(x, other):
             return x.get_key().get_value() == other
 
         return next((x for x in self.get_children() if compare(x, key)), default)
+
+    def add_entry(self, entry):
+        if self._helper is None:
+            self._helper = MapHelper()
+            self._helper.set_file_name(self.get_file_name())
+            self._helper.set_line_number(self.get_line_number())
+
+        self._add_entry(entry)
 
     def get_entry(self, key, default):
         return self._get_entry(key, default)
@@ -88,3 +74,14 @@ class Map(ast.mixins.node.Node, ast.mixins.typed.Typed):
         else:
             var_or_const = x.get_value()
             return var_or_const.get_value()
+
+    def check(self):
+        for child in self.get_children():
+            if self.has_type():
+                if not self.has_same_type(child.get_key()):
+                    raise ast.error.IncompatibleTypesError(self, child.get_key(), self)
+                if not self._helper.has_same_type(child.get_value()):
+                    raise ast.error.IncompatibleTypesError(self, child.get_value(), self)
+            else:
+                self.set_type(child.get_key().get_type())
+                self._helper.set_type(child.get_value().get_type())

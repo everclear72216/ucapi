@@ -12,7 +12,6 @@ class Node(object):
 
     def add_child(self, child: 'Node') -> None:
         assert isinstance(child, Node)
-
         self.__children.append(child)
 
     def get_line_number(self) -> int:
@@ -34,7 +33,8 @@ class Node(object):
         self.__filename = str(f)
 
     def is_leaf(self) -> bool:
-        if len(self.__children) == 0:
-            return True
+        return len(self.__children) == 0
 
-        return False
+    def check(self):
+        for node in self.__children:
+            node.check()
